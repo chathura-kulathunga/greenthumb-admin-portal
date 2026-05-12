@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GreenThumb | Executive Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+    <div id="loginGate" class="login-container">
+        <div class="login-card">
+            <h2>GreenThumb Admin</h2>
+            <p>Authorized Personnel Only</p>
+            <input type="email" id="adminEmail" placeholder="Executive Email">
+            <input type="password" id="adminPassword" placeholder="Password">
+            <button id="btnLogin">Access Dashboard</button>
+            <p id="loginError" class="error-text"></p>
+        </div>
+    </div>
+
+    <div id="masterDashboard" class="dashboard-layout hidden">
+        
+        <aside class="sidebar">
+            <div class="brand">
+                <h2>GreenThumb</h2>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-target="panel-overview">Overview</button>
+                <button class="nav-btn" data-target="panel-orders">Orders</button>
+                <button class="nav-btn" data-target="panel-products">Products</button>
+                <button class="nav-btn" data-target="panel-reviews">Reviews</button>
+            </nav>
+            <button id="btnLogout" class="logout-btn">Secure Logout</button>
+        </aside>
+
+        <main class="content-area">
+            
+            <section id="panel-overview" class="panel active">
+                <header>
+                    <h1>Executive Overview</h1>
+                    <div class="live-status">🟢 Live Sync Active</div>
+                </header>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Revenue</h3>
+                        <h2 id="statRevenue">LKR 0.00</h2>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Pending Orders</h3>
+                        <h2 id="statOrders">0</h2>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Active Products</h3>
+                        <h2 id="statProducts">0</h2>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </section>
+
+            <section id="panel-orders" class="panel hidden">
+                <header>
+                    <h1>Order Management</h1>
+                </header>
+                <div class="table-container">
+                    <table id="ordersTable">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Total (LKR)</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersList">
+                            <tr><td colspan="5" class="placeholder-text">Syncing orders...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="panel-products" class="panel hidden">
+                <header>
+                    <h1>Inventory Management</h1>
+                    <button class="action-btn" id="btnAddProduct">+ Add Product</button>
+                </header>
+                <div class="table-container">
+                    <table id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>Plant Name</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsList">
+                            <tr><td colspan="5" class="placeholder-text">Syncing inventory...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="panel-reviews" class="panel hidden">
+                <header>
+                    <h1>Review Moderation</h1>
+                </header>
+                <div class="table-container">
+                    <table id="reviewsTable">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Product</th>
+                                <th>Rating</th>
+                                <th>Comment</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reviewsList">
+                             <tr><td colspan="5" class="placeholder-text">Syncing reviews...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <div id="productModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add New Product</h2>
+            <input type="hidden" id="productId"> <div class="form-group">
+                <label>Plant Name</label>
+                <input type="text" id="pName" placeholder="e.g. Aloe Vera">
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <input type="text" id="pCategory" placeholder="e.g. Indoor">
+            </div>
+            <div class="form-group">
+                <label>Price (LKR)</label>
+                <input type="number" id="pPrice" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Stock Quantity</label>
+                <input type="number" id="pStock" placeholder="0">
+            </div>
+            
+            <div class="modal-actions">
+                <button id="btnCancelModal" class="btn-secondary">Cancel</button>
+                <button id="btnSaveProduct" class="btn-primary">Save Product</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/admin.js"></script>
+</body>
+</html>
