@@ -73,13 +73,14 @@
                             <tr>
                                 <th>Order ID</th>
                                 <th>Customer</th>
-                                <th>Total</th>
+                                <th>Total (LKR)</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="ordersList">
-                            </tbody>
+                            <tr><td colspan="5" class="placeholder-text">Syncing orders...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </section>
@@ -90,7 +91,20 @@
                     <button class="action-btn" id="btnAddProduct">+ Add Product</button>
                 </header>
                 <div class="table-container">
-                    <p class="placeholder-text">Loading inventory data...</p>
+                    <table id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>Plant Name</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsList">
+                            <tr><td colspan="5" class="placeholder-text">Syncing inventory...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
@@ -99,11 +113,51 @@
                     <h1>Review Moderation</h1>
                 </header>
                 <div class="table-container">
-                    <p class="placeholder-text">Loading recent reviews...</p>
+                    <table id="reviewsTable">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Product</th>
+                                <th>Rating</th>
+                                <th>Comment</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reviewsList">
+                             <tr><td colspan="5" class="placeholder-text">Syncing reviews...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
         </main>
+    </div>
+
+    <div id="productModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add New Product</h2>
+            <input type="hidden" id="productId"> <div class="form-group">
+                <label>Plant Name</label>
+                <input type="text" id="pName" placeholder="e.g. Aloe Vera">
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <input type="text" id="pCategory" placeholder="e.g. Indoor">
+            </div>
+            <div class="form-group">
+                <label>Price (LKR)</label>
+                <input type="number" id="pPrice" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Stock Quantity</label>
+                <input type="number" id="pStock" placeholder="0">
+            </div>
+            
+            <div class="modal-actions">
+                <button id="btnCancelModal" class="btn-secondary">Cancel</button>
+                <button id="btnSaveProduct" class="btn-primary">Save Product</button>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="js/firebase-config.js"></script>

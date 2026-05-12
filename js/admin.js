@@ -1,103 +1,183 @@
 import { auth, db } from './firebase-config.js';
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// DOM Elements
+// DOM Links
 const loginGate = document.getElementById('loginGate');
 const masterDashboard = document.getElementById('masterDashboard');
-const emailInput = document.getElementById('adminEmail');
-const passInput = document.getElementById('adminPassword');
-const btnLogin = document.getElementById('btnLogin');
-const btnLogout = document.getElementById('btnLogout');
-const loginError = document.getElementById('loginError');
 
-// --- 1. AUTHENTICATION ENGINE ---
-// Listen for auth state changes to hide/show dashboard
+// --- 1. AUTHENTICATION ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         loginGate.classList.add('hidden');
         masterDashboard.classList.remove('hidden');
-        initLiveChart(); // Start the charts when logged in
+        initDashboardData();
     } else {
         loginGate.classList.remove('hidden');
         masterDashboard.classList.add('hidden');
     }
 });
 
-// Login Execution
-btnLogin.addEventListener('click', () => {
-    const email = emailInput.value;
-    const pass = passInput.value;
-    
-    signInWithEmailAndPassword(auth, email, pass)
-        .then(() => { loginError.textContent = ""; })
-        .catch((error) => { loginError.textContent = "Access Denied: Invalid Credentials"; });
+document.getElementById('btnLogin').addEventListener('click', () => {
+    signInWithEmailAndPassword(auth, document.getElementById('adminEmail').value, document.getElementById('adminPassword').value)
+        .catch(() => { document.getElementById('loginError').textContent = "Access Denied: Invalid Credentials"; });
 });
+document.getElementById('btnLogout').addEventListener('click', () => { signOut(auth); });
 
-// Logout Execution
-btnLogout.addEventListener('click', () => { signOut(auth); });
-
-
-// --- 2. NAVIGATION ENGINE ---
-const navButtons = document.querySelectorAll('.nav-btn');
-const panels = document.querySelectorAll('.panel');
-
-navButtons.forEach(btn => {
+// --- 2. NAVIGATION ---
+document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        // Remove active class from all
-        navButtons.forEach(b => b.classList.remove('active'));
-        panels.forEach(p => p.classList.add('hidden'));
-
-        // Add active class to clicked
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
         btn.classList.add('active');
-        const targetId = btn.getAttribute('data-target');
-        document.getElementById(targetId).classList.remove('hidden');
+        document.getElementById(btn.getAttribute('data-target')).classList.remove('hidden');
     });
 });
 
+// --- 3. MODAL LOGIC (ADD / EDIT) ---
+const productModal = document.getElementById('productModal');
+const btnAddProduct = document.getElementById('btnAddProduct');
+const btnCancelModal = document.getElementById('btnCancelModal');
+const btnSaveProduct = document.getElementById('btnSaveProduct');
 
-// --- 3. LIVE DASHBOARD & CHARTS ENGINE ---
-function initLiveChart() {
-    const ctx = document.getElementById('revenueChart').getContext('2d');
-    
-    // Create Chart.js Instance
-    const revenueChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            datasets: [{
-                label: 'Weekly Revenue (LKR)',
-                data: [12000, 19000, 15000, 25000, 22000, 30000, 28000], // Placeholder data
-                borderColor: '#2A4D34',
-                backgroundColor: 'rgba(42, 77, 52, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } }
+// Inputs
+const pId = document.getElementById('productId');
+const pName = document.getElementById('pName');
+const pCat = document.getElementById('pCategory');
+const pPrice = document.getElementById('pPrice');
+const pStock = document.getElementById('pStock');
+const modalTitle = document.getElementById('modalTitle');
+
+btnAddProduct.addEventListener('click', () => {
+    pId.value = ''; pName.value = ''; pCat.value = ''; pPrice.value = ''; pStock.value = '';
+    modalTitle.innerText = "Add New Product";
+    productModal.classList.remove('hidden');
+});
+
+btnCancelModal.addEventListener('click', () => { productModal.classList.add('hidden'); });
+
+btnSaveProduct.addEventListener('click', async () => {
+    const productData = {
+        name: pName.value,
+        category: pCat.value,
+        price: Number(pPrice.value),
+        stock: Number(pStock.value)
+    };
+
+    try {
+        if (pId.value === "") {
+            // Create New Product
+            await addDoc(collection(db, "plants"), productData);
+        } else {
+            // Update Existing Product
+            const plantRef = doc(db, "plants", pId.value);
+            await updateDoc(plantRef, productData);
         }
+        productModal.classList.add('hidden'); // Close modal on success
+    } catch (e) {
+        alert("Error saving product: " + e.message);
+    }
+});
+
+// Global Edit/Delete Functions for Inline Buttons
+window.editProduct = function(id, name, cat, price, stock) {
+    pId.value = id; pName.value = name; pCat.value = cat; pPrice.value = price; pStock.value = stock;
+    modalTitle.innerText = "Edit Product";
+    productModal.classList.remove('hidden');
+}
+
+window.deleteProduct = async function(id) {
+    if(confirm("Are you sure you want to delete this plant?")) {
+        await deleteDoc(doc(db, "plants", id));
+    }
+}
+
+
+// --- 4. DATA SYNCING ---
+function initDashboardData() {
+    
+    // 1. Sync Orders & Calculate Revenue
+    onSnapshot(collection(db, "orders"), (snapshot) => {
+        let totalOrders = 0;
+        let totalRev = 0;
+        const ordersList = document.getElementById('ordersList');
+        ordersList.innerHTML = ''; 
+
+        if (snapshot.empty) {
+            ordersList.innerHTML = '<tr><td colspan="5" class="placeholder-text">No orders found yet.</td></tr>';
+        } else {
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                totalOrders++;
+                
+                // Force math calculation to prevent string bugs
+                const orderTotal = Number(data.totalPrice) || 0; 
+                totalRev += orderTotal;
+                
+                ordersList.innerHTML += `
+                    <tr>
+                        <td>#${doc.id.substring(0,6).toUpperCase()}</td>
+                        <td>${data.customerName || 'Guest'}</td>
+                        <td>LKR ${orderTotal.toFixed(2)}</td>
+                        <td><span class="live-status">${data.status || 'Pending'}</span></td>
+                        <td><button class="action-btn">Manage</button></td>
+                    </tr>
+                `;
+            });
+        }
+        document.getElementById('statOrders').innerText = totalOrders;
+        document.getElementById('statRevenue').innerText = `LKR ${totalRev.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
     });
 
-    /* SENIOR DEV NOTE: 
-       To make this truly live, we use Firestore's onSnapshot. 
-       This listens to the database and updates the UI instantly if an order comes in! 
-    */
-    const ordersRef = collection(db, "orders");
-    onSnapshot(ordersRef, (snapshot) => {
-        let totalOrders = 0;
-        let totalRevenue = 0;
-        
-        snapshot.forEach((doc) => {
-            totalOrders++;
-            totalRevenue += doc.data().totalPrice || 0;
-            // Here we would also push data into the HTML table...
-        });
+    // 2. Sync Products (with Edit/Delete buttons wired up)
+    onSnapshot(collection(db, "plants"), (snapshot) => {
+        const productsList = document.getElementById('productsList');
+        productsList.innerHTML = '';
+        document.getElementById('statProducts').innerText = snapshot.size;
 
-        document.getElementById('statOrders').innerText = totalOrders;
-        document.getElementById('statRevenue').innerText = `LKR ${totalRevenue.toFixed(2)}`;
+        if (snapshot.empty) return;
+
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            const safeName = data.name ? data.name.replace(/'/g, "\\'") : 'Unnamed';
+            const safeCat = data.category ? data.category.replace(/'/g, "\\'") : 'N/A';
+            
+            productsList.innerHTML += `
+                <tr>
+                    <td><strong>${data.name || 'Unnamed'}</strong></td>
+                    <td>${data.category || 'N/A'}</td>
+                    <td>LKR ${Number(data.price || 0).toFixed(2)}</td>
+                    <td>${data.stock || 0} units</td>
+                    <td>
+                        <button class="action-btn" onclick="editProduct('${doc.id}', '${safeName}', '${safeCat}', ${data.price || 0}, ${data.stock || 0})">Edit</button>
+                        <button class="btn-danger" style="margin-left:5px;" onclick="deleteProduct('${doc.id}')">Del</button>
+                    </td>
+                </tr>
+            `;
+        });
+    });
+
+    // 3. Sync Reviews
+    onSnapshot(collection(db, "reviews"), (snapshot) => {
+        const reviewsList = document.getElementById('reviewsList');
+        reviewsList.innerHTML = '';
+
+        if (snapshot.empty) {
+            reviewsList.innerHTML = '<tr><td colspan="5" class="placeholder-text">No reviews published yet.</td></tr>';
+            return;
+        }
+
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            reviewsList.innerHTML += `
+                <tr>
+                    <td><strong>${data.userName || 'Anonymous'}</strong></td>
+                    <td>${data.plantName || 'Unknown Product'}</td>
+                    <td>⭐ ${data.rating || 5}/5</td>
+                    <td>"${data.comment || ''}"</td>
+                    <td><button class="btn-danger" onclick="deleteDoc(doc(db, 'reviews', '${doc.id}'))">Remove</button></td>
+                </tr>
+            `;
+        });
     });
 }

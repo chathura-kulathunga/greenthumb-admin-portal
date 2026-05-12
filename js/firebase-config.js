@@ -1,19 +1,17 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// TODO: Replace with your actual Firebase Web Config
+// ⚠️ REPLACE THIS ENTIRE BLOCK WITH YOUR WEB APP CONFIG FROM FIREBASE CONSOLE ⚠️
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyD04f0gD1D_N_ofIcvx5y0-T1KJ7Dp-n08",
   authDomain: "greenthumb-ea1d0.firebaseapp.com",
   projectId: "greenthumb-ea1d0",
-  storageBucket: "greenthumb-ea1d0.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  storageBucket: "greenthumb-ea1d0.firebasestorage.app",
+  messagingSenderId: "976985468622",
+  appId: "1:976985468622:web:9208bf9212d036da3daa9f"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
