@@ -59,8 +59,12 @@ th { background: #fdfdfd; color: var(--text-muted); font-size: 13px; text-transf
     z-index: 1000;
 }
 .modal-content {
-    background: var(--card-white); padding: 32px; border-radius: 12px;
-    width: 100%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    background: var(--card-white); 
+    padding: 32px; 
+    border-radius: 12px;
+    width: 100%; 
+    max-width: 550px; 
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
 }
 .modal-content h2 { color: var(--primary-dark); margin-bottom: 20px; }
 .form-group { margin-bottom: 16px; }
@@ -71,3 +75,69 @@ th { background: #fdfdfd; color: var(--text-muted); font-size: 13px; text-transf
 .btn-secondary { background: #e0e0e0; color: #333; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold;}
 .btn-primary { background: var(--primary-green); color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold;}
 .btn-danger { background: var(--error); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;}
+
+/* --- NEW UI UPDATES --- */
+select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    outline: none;
+    font-size: 15px;
+    background-color: white;
+}
+select:focus { border-color: var(--primary-green); }
+
+.image-preview-container {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+}
+.img-thumb-wrapper {
+    position: relative;
+    min-width: 60px;
+    height: 60px;
+}
+.img-thumb-wrapper img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+.remove-img-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--error);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* --- TEXTAREA STYLING --- */
+textarea {
+    width: 100%;
+    max-width: 100%; 
+    box-sizing: border-box; 
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    outline: none;
+    font-size: 15px;
+    background-color: white;
+    font-family: inherit;
+    resize: vertical; 
+}
+textarea:focus { border-color: var(--primary-green); }
