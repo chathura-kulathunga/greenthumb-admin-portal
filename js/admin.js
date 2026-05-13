@@ -6,6 +6,9 @@ import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from "https
 const loginGate = document.getElementById('loginGate');
 const masterDashboard = document.getElementById('masterDashboard');
 
+// Global Data Cache (Solves the Base64 Edit Crash)
+window.plantDataCache = {};
+
 // --- 1. AUTHENTICATION ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -34,72 +37,250 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     });
 });
 
-// --- 3. MODAL LOGIC (ADD / EDIT) ---
-const productModal = document.getElementById('productModal');
-const btnAddProduct = document.getElementById('btnAddProduct');
-const btnCancelModal = document.getElementById('btnCancelModal');
-const btnSaveProduct = document.getElementById('btnSaveProduct');
+// --- 3. BASE64 IMAGE COMPRESSOR ---
+function compressImageToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 600; 
+                const scaleSize = MAX_WIDTH / img.width;
+                canvas.width = MAX_WIDTH;
+                canvas.height = img.height * scaleSize;
 
-// Inputs
-const pId = document.getElementById('productId');
-const pName = document.getElementById('pName');
-const pCat = document.getElementById('pCategory');
-const pPrice = document.getElementById('pPrice');
-const pStock = document.getElementById('pStock');
-const modalTitle = document.getElementById('modalTitle');
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6)); 
+            };
+        };
+        reader.onerror = error => reject(error);
+    });
+}
 
-btnAddProduct.addEventListener('click', () => {
-    pId.value = ''; pName.value = ''; pCat.value = ''; pPrice.value = ''; pStock.value = '';
-    modalTitle.innerText = "Add New Product";
-    productModal.classList.remove('hidden');
+// --- 4. DYNAMIC IMAGE & PRODUCT MODAL ---
+let existingImages = []; // Stores Base64 from database
+let selectedImages = []; // Stores new File objects
+const pImageInput = document.getElementById('pImageInput');
+const previewContainer = document.getElementById('imagePreviewContainer');
+const productError = document.getElementById('productError');
+
+pImageInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    if(validFiles.length !== files.length) {
+        showProductError("Invalid file type. Please upload images only.");
+    }
+    
+    selectedImages = selectedImages.concat(validFiles);
+    renderImagePreviews();
+    pImageInput.value = ""; 
 });
 
-btnCancelModal.addEventListener('click', () => { productModal.classList.add('hidden'); });
+function renderImagePreviews() {
+    previewContainer.innerHTML = '';
+    
+    // 1. Draw Existing Images
+    existingImages.forEach((base64Str, index) => {
+        const div = document.createElement('div');
+        div.className = 'img-thumb-wrapper';
+        div.innerHTML = `
+            <img src="${base64Str}">
+            <button class="remove-img-btn" onclick="removeExistingImage(${index})">X</button>
+        `;
+        previewContainer.appendChild(div);
+    });
 
-btnSaveProduct.addEventListener('click', async () => {
-    const productData = {
-        name: pName.value,
-        category: pCat.value,
-        price: Number(pPrice.value),
-        stock: Number(pStock.value)
-    };
+    // 2. Draw Newly Selected Images
+    selectedImages.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const div = document.createElement('div');
+            div.className = 'img-thumb-wrapper';
+            div.innerHTML = `
+                <img src="${e.target.result}">
+                <button class="remove-img-btn" onclick="removeSelectedImage(${index})">X</button>
+            `;
+            previewContainer.appendChild(div);
+        }
+        reader.readAsDataURL(file);
+    });
+}
+
+window.removeExistingImage = function(index) {
+    existingImages.splice(index, 1);
+    renderImagePreviews();
+}
+
+window.removeSelectedImage = function(index) {
+    selectedImages.splice(index, 1);
+    renderImagePreviews();
+}
+
+function showProductError(msg) {
+    productError.textContent = msg;
+    productError.classList.remove('hidden');
+}
+
+// OPEN ADD MODAL
+document.getElementById('btnAddProduct').addEventListener('click', () => {
+    document.getElementById('productId').value = '';
+    document.getElementById('pName').value = '';
+    document.getElementById('pCategory').value = '';
+    document.getElementById('pDesc').value = '';
+    document.getElementById('pPrice').value = '';
+    document.getElementById('pStock').value = '';
+    document.getElementById('pDelivery').value = '';
+    existingImages = [];
+    selectedImages = [];
+    renderImagePreviews();
+    productError.classList.add('hidden');
+    document.getElementById('modalTitle').innerText = "Add New Product";
+    document.getElementById('productModal').classList.remove('hidden');
+});
+
+document.getElementById('btnCancelModal').addEventListener('click', () => { 
+    document.getElementById('productModal').classList.add('hidden'); 
+});
+
+// SAVE LOGIC
+document.getElementById('btnSaveProduct').addEventListener('click', async () => {
+    const id = document.getElementById('productId').value;
+    const name = document.getElementById('pName').value.trim();
+    const cat = document.getElementById('pCategory').value;
+    const desc = document.getElementById('pDesc').value.trim();
+    const price = parseFloat(document.getElementById('pPrice').value);
+    const stock = parseInt(document.getElementById('pStock').value);
+    const deliveryFee = parseFloat(document.getElementById('pDelivery').value) || 0; // Default to 0
+
+    if (!name || !cat || !desc || isNaN(price) || isNaN(stock)) {
+        return showProductError("All text and number fields must be filled correctly.");
+    }
+    if (price < 0 || stock < 0 || deliveryFee < 0) {
+        return showProductError("Price, Stock, and Delivery Fee cannot be negative.");
+    }
+    
+    // EXACTLY 3 IMAGES COMBINED RULE
+    const totalImages = existingImages.length + selectedImages.length;
+    if (totalImages !== 3) {
+        return showProductError(`You must have exactly 3 images total. You currently have ${totalImages}.`);
+    }
+
+    document.getElementById('btnSaveProduct').innerText = "Processing & Saving...";
+    document.getElementById('btnSaveProduct').disabled = true;
 
     try {
-        if (pId.value === "") {
-            // Create New Product
+        let finalImages = [...existingImages]; // Start with the kept existing images
+        
+        // Compress and append new images
+        for (let i = 0; i < selectedImages.length; i++) {
+            const base64String = await compressImageToBase64(selectedImages[i]);
+            finalImages.push(base64String);
+        }
+
+        const productData = { 
+            name, 
+            category: cat, 
+            description: desc, 
+            price, 
+            stock,
+            deliveryFee,
+            imageUrl: finalImages[0] || "",
+            imageUrl2: finalImages[1] || "",
+            imageUrl3: finalImages[2] || ""
+        };
+
+        if (id === "") {
             await addDoc(collection(db, "plants"), productData);
         } else {
-            // Update Existing Product
-            const plantRef = doc(db, "plants", pId.value);
-            await updateDoc(plantRef, productData);
+            await updateDoc(doc(db, "plants", id), productData);
         }
-        productModal.classList.add('hidden'); // Close modal on success
+        
+        document.getElementById('productModal').classList.add('hidden');
     } catch (e) {
-        alert("Error saving product: " + e.message);
+        showProductError("Upload Failed. See console for details.");
+        console.error(e);
+    } finally {
+        document.getElementById('btnSaveProduct').innerText = "Save Product";
+        document.getElementById('btnSaveProduct').disabled = false;
     }
 });
 
-// Global Edit/Delete Functions for Inline Buttons
-window.editProduct = function(id, name, cat, price, stock) {
-    pId.value = id; pName.value = name; pCat.value = cat; pPrice.value = price; pStock.value = stock;
-    modalTitle.innerText = "Edit Product";
-    productModal.classList.remove('hidden');
+// EDIT FUNCTION (Pulls from Global Cache securely)
+window.editProduct = function(id) {
+    const data = window.plantDataCache[id]; // Fetch full data from cache
+    if(!data) return alert("Error loading product data.");
+
+    document.getElementById('productId').value = id; 
+    document.getElementById('pName').value = data.name || ''; 
+    document.getElementById('pCategory').value = data.category || ''; 
+    document.getElementById('pDesc').value = data.description || ''; 
+    document.getElementById('pPrice').value = data.price || 0; 
+    document.getElementById('pStock').value = data.stock || 0;
+    document.getElementById('pDelivery').value = data.deliveryFee || 0;
+    
+    // Load existing images
+    existingImages = [];
+    selectedImages = [];
+    if(data.imageUrl) existingImages.push(data.imageUrl);
+    if(data.imageUrl2) existingImages.push(data.imageUrl2);
+    if(data.imageUrl3) existingImages.push(data.imageUrl3);
+    
+    renderImagePreviews();
+    productError.classList.add('hidden');
+    document.getElementById('modalTitle').innerText = "Edit Product";
+    document.getElementById('productModal').classList.remove('hidden');
 }
 
 window.deleteProduct = async function(id) {
-    if(confirm("Are you sure you want to delete this plant?")) {
+    if(confirm("Are you sure you want to permanently delete this plant?")) {
         await deleteDoc(doc(db, "plants", id));
     }
 }
 
+// --- 5. ORDER MANAGEMENT MODAL (DUAL UPDATE SYSTEM) ---
+window.manageOrder = function(id, userId, name, total, status) {
+    document.getElementById('manageOrderId').value = id;
+    document.getElementById('manageOrderUserId').value = userId; // Store the mobile user's ID
+    document.getElementById('manageOrderDetails').innerText = `Customer: ${name} | Order Total: LKR ${parseFloat(total).toFixed(2)}`;
+    document.getElementById('oStatus').value = status;
+    document.getElementById('orderError').classList.add('hidden');
+    document.getElementById('orderModal').classList.remove('hidden');
+}
 
-// --- 4. DATA SYNCING ---
-function initDashboardData() {
+document.getElementById('btnCancelOrderModal').addEventListener('click', () => {
+    document.getElementById('orderModal').classList.add('hidden');
+});
+
+document.getElementById('btnSaveOrder').addEventListener('click', async () => {
+    const id = document.getElementById('manageOrderId').value;
+    const userId = document.getElementById('manageOrderUserId').value;
+    const newStatus = document.getElementById('oStatus').value;
     
-    // 1. Sync Orders & Calculate Revenue
+    try {
+        // 1. Update the Master Dashboard Document
+        await updateDoc(doc(db, "orders", id), { status: newStatus });
+        
+        // 2. Update the Mobile App's "Carbon Copy" so the app reacts in real-time!
+        if (userId && userId !== "undefined") {
+            await updateDoc(doc(db, "users", userId, "orders", id), { status: newStatus });
+        }
+
+        document.getElementById('orderModal').classList.add('hidden');
+    } catch (e) {
+        document.getElementById('orderError').textContent = "Failed to update order status.";
+        document.getElementById('orderError').classList.remove('hidden');
+    }
+});
+
+// --- 6. DATA SYNCING ---
+function initDashboardData() {
+    // 1. Orders Sync
     onSnapshot(collection(db, "orders"), (snapshot) => {
-        let totalOrders = 0;
-        let totalRev = 0;
+        let totalOrders = 0; let totalRev = 0;
         const ordersList = document.getElementById('ordersList');
         ordersList.innerHTML = ''; 
 
@@ -110,17 +291,23 @@ function initDashboardData() {
                 const data = doc.data();
                 totalOrders++;
                 
-                // Force math calculation to prevent string bugs
                 const orderTotal = Number(data.totalPrice) || 0; 
-                totalRev += orderTotal;
+                
+                // Only add to revenue if Delivered!
+                if (data.status === "Delivered") {
+                    totalRev += orderTotal;
+                }
+                
+                const safeName = data.customerName ? data.customerName.replace(/'/g, "\\'") : 'Guest';
+                const safeUserId = data.userId || ''; // Fetch the ID from the db
                 
                 ordersList.innerHTML += `
                     <tr>
                         <td>#${doc.id.substring(0,6).toUpperCase()}</td>
-                        <td>${data.customerName || 'Guest'}</td>
+                        <td>${safeName}</td>
                         <td>LKR ${orderTotal.toFixed(2)}</td>
                         <td><span class="live-status">${data.status || 'Pending'}</span></td>
-                        <td><button class="action-btn">Manage</button></td>
+                        <td><button class="action-btn" onclick="manageOrder('${doc.id}', '${safeUserId}', '${safeName}', ${orderTotal}, '${data.status || 'Pending'}')">Manage</button></td>
                     </tr>
                 `;
             });
@@ -129,18 +316,18 @@ function initDashboardData() {
         document.getElementById('statRevenue').innerText = `LKR ${totalRev.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
     });
 
-    // 2. Sync Products (with Edit/Delete buttons wired up)
+    // 2. Plants Sync
     onSnapshot(collection(db, "plants"), (snapshot) => {
         const productsList = document.getElementById('productsList');
         productsList.innerHTML = '';
         document.getElementById('statProducts').innerText = snapshot.size;
 
         if (snapshot.empty) return;
-
         snapshot.forEach((doc) => {
             const data = doc.data();
-            const safeName = data.name ? data.name.replace(/'/g, "\\'") : 'Unnamed';
-            const safeCat = data.category ? data.category.replace(/'/g, "\\'") : 'N/A';
+            
+            // Save to local cache so the Edit button can find it!
+            window.plantDataCache[doc.id] = data; 
             
             productsList.innerHTML += `
                 <tr>
@@ -149,7 +336,7 @@ function initDashboardData() {
                     <td>LKR ${Number(data.price || 0).toFixed(2)}</td>
                     <td>${data.stock || 0} units</td>
                     <td>
-                        <button class="action-btn" onclick="editProduct('${doc.id}', '${safeName}', '${safeCat}', ${data.price || 0}, ${data.stock || 0})">Edit</button>
+                        <button class="action-btn" onclick="editProduct('${doc.id}')">Edit</button>
                         <button class="btn-danger" style="margin-left:5px;" onclick="deleteProduct('${doc.id}')">Del</button>
                     </td>
                 </tr>
@@ -157,16 +344,14 @@ function initDashboardData() {
         });
     });
 
-    // 3. Sync Reviews
+    // 3. Reviews Sync
     onSnapshot(collection(db, "reviews"), (snapshot) => {
         const reviewsList = document.getElementById('reviewsList');
         reviewsList.innerHTML = '';
-
         if (snapshot.empty) {
             reviewsList.innerHTML = '<tr><td colspan="5" class="placeholder-text">No reviews published yet.</td></tr>';
             return;
         }
-
         snapshot.forEach((doc) => {
             const data = doc.data();
             reviewsList.innerHTML += `
