@@ -141,3 +141,36 @@ textarea {
     resize: vertical; 
 }
 textarea:focus { border-color: var(--primary-green); }
+
+/* --- PREMIUM FOOTER STYLING --- */
+.dashboard-footer {
+    margin-top: 50px;
+    padding-top: 24px;
+    padding-bottom: 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08); /* Extremely subtle line */
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer-links {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.footer-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+    color: var(--primary-green);
+    font-weight: bold;
+}
